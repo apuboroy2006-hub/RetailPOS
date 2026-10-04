@@ -17,18 +17,22 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
 import com.retailpos.model.OtpCode;
+import com.retailpos.model.Session;
 import com.retailpos.model.User;
 import com.retailpos.repository.AuditLogRepository;
 import com.retailpos.repository.DeviceRepository;
 import com.retailpos.repository.OtpRepository;
+import com.retailpos.repository.SessionRepository;
 import com.retailpos.repository.UserRepository;
 import com.retailpos.repository.mongodb.AuditLogRepositoryImpl;
 import com.retailpos.repository.mongodb.DeviceRepositoryImpl;
 import com.retailpos.repository.mongodb.OtpRepositoryImpl;
+import com.retailpos.repository.mongodb.SessionRepositoryImpl;
 import com.retailpos.repository.mongodb.UserRepositoryImpl;
 import com.retailpos.security.AuthService;
 import com.retailpos.security.EmailService;
 import com.retailpos.security.OtpService;
+import com.retailpos.security.SessionService;
 import com.retailpos.service.AuditLogService;
 import com.retailpos.ui.dashboard.DashboardFrame;
 public class LoginFrame extends JFrame {
@@ -41,6 +45,7 @@ public class LoginFrame extends JFrame {
     private final AuditLogService auditLogService;
     private final OtpService otpService;
     private EmailService emailService;
+    private SessionService sessionService;
     public LoginFrame() {
 
         UserRepository userRepository =
@@ -54,7 +59,11 @@ public class LoginFrame extends JFrame {
                         userRepository,
                         deviceRepository
                 );
+        SessionRepository sessionRepository =
+        new SessionRepositoryImpl();
 
+sessionService =
+        new SessionService(sessionRepository);
         AuditLogRepository auditLogRepository =
                 new AuditLogRepositoryImpl();
 
@@ -234,7 +243,8 @@ public class LoginFrame extends JFrame {
                         authService.isCurrentDeviceKnown(
                                 loggedInUser
                         );
-
+                var currentDevice =
+        authService.getCurrentDevice(loggedInUser);
                 if (!knownDevice) {
 
     if (loggedInUser.getEmail() == null
@@ -282,8 +292,7 @@ public class LoginFrame extends JFrame {
     return;
 }
 
-    var currentDevice =
-            authService.getCurrentDevice(loggedInUser);
+    
 
     OtpCode otpCode =
             otpService.generateOtp(
@@ -415,13 +424,16 @@ public class LoginFrame extends JFrame {
                         "AUTHENTICATION",
                         "User logged in successfully"
                 );
-
+                Session session =
+        sessionService.createSession(
+                loggedInUser.getId(),
+                loggedInUser.getUsername(),
+                currentDevice.getDeviceId()
+        );
                 dispose();
 
-                DashboardFrame dashboardFrame =
-                        new DashboardFrame(
-                                loggedInUser
-                        );
+               DashboardFrame dashboardFrame =
+        new DashboardFrame(loggedInUser, session);
 
                 dashboardFrame.setVisible(true);
 

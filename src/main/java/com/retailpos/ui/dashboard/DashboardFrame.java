@@ -13,12 +13,16 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 import javax.swing.Timer;
 
+import com.retailpos.model.Session;
 import com.retailpos.model.User;
 import com.retailpos.repository.AuditLogRepository;
+import com.retailpos.repository.SessionRepository;
 import com.retailpos.repository.mongodb.AuditLogRepositoryImpl;
 import com.retailpos.repository.mongodb.ProductRepositoryImpl;
 import com.retailpos.repository.mongodb.SaleItemRepositoryImpl;
 import com.retailpos.repository.mongodb.SaleRepositoryImpl;
+import com.retailpos.repository.mongodb.SessionRepositoryImpl;
+import com.retailpos.security.SessionService;
 import com.retailpos.service.AuditLogService;
 import com.retailpos.service.ProductService;
 import com.retailpos.service.SaleService;
@@ -40,13 +44,23 @@ public class DashboardFrame extends JFrame {
     private final AuditLogService auditLogService;
     private final ProductService productService;
 private final SaleService saleService;
+private final SessionService sessionService;
+private final Session session;
 private JLabel productsValueLabel;
 private JLabel todaysSalesValueLabel;
 private JLabel stockValueLabel;
 private JLabel lowStockValueLabel;
 private Timer dashboardTimer;
 
-    public DashboardFrame(User loggedInUser) {
+   public DashboardFrame(User loggedInUser, Session session) {
+        this.loggedInUser = loggedInUser;
+        this.session = session;
+SessionRepository sessionRepository =
+        new SessionRepositoryImpl();
+
+sessionService =
+        new SessionService(sessionRepository);
+       
 ProductRepositoryImpl productRepository =
         new ProductRepositoryImpl();
 
@@ -65,7 +79,7 @@ saleService =
                 saleRepository,
                 saleItemRepository
         );
-        this.loggedInUser = loggedInUser;
+       
         AuditLogRepository auditLogRepository =
         new AuditLogRepositoryImpl();
 
@@ -701,30 +715,33 @@ private void refreshDashboard() {
             )
     );
 }
-    private void logout() {
+   private void logout() {
 
-        int choice =
-                JOptionPane.showConfirmDialog(
-                        this,
-                        "Are you sure you want to logout?",
-                        "Logout",
-                        JOptionPane.YES_NO_OPTION
-                );
+    int choice =
+            JOptionPane.showConfirmDialog(
+                    this,
+                    "Are you sure you want to logout?",
+                    "Logout",
+                    JOptionPane.YES_NO_OPTION
+            );
 
-       if (choice ==
-        JOptionPane.YES_OPTION) {
+    if (choice == JOptionPane.YES_OPTION) {
 
-    auditLogService.log(
-            loggedInUser.getId(),
-            loggedInUser.getUsername(),
-            "LOGOUT",
-            "AUTHENTICATION",
-            "User logged out successfully"
-    );
+        if (session != null) {
+            sessionService.logout(session);
+        }
 
-    dispose();
+        auditLogService.log(
+                loggedInUser.getId(),
+                loggedInUser.getUsername(),
+                "LOGOUT",
+                "AUTHENTICATION",
+                "User logged out successfully"
+        );
 
-    // Login screen will be opened here later.
-}
+        dispose();
+
+        // Login screen will be opened here later.
     }
+}
 }
