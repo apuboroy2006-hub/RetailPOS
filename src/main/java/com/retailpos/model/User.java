@@ -8,8 +8,15 @@ public class User {
     private String username;
     private String passwordHash;
     private String fullName;
+    private String email;
     private String role;
     private String status;
+    private int failedLoginAttempts;
+    private LocalDateTime lockedUntil;
+    private LocalDateTime lastLoginAt;
+    private int failedOtpAttempts;
+    private LocalDateTime otpLockedUntil;
+    private int otpLockLevel;
     private LocalDateTime createdAt;
 
     public User() {
@@ -62,6 +69,14 @@ public class User {
         this.fullName = fullName;
     }
 
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
     public String getRole() {
         return role;
     }
@@ -85,4 +100,50 @@ public class User {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+    public int getFailedLoginAttempts() {
+    return failedLoginAttempts;
+}
+
+public void setFailedLoginAttempts(int failedLoginAttempts) {
+    this.failedLoginAttempts = failedLoginAttempts;
+}
+
+public LocalDateTime getLockedUntil() {
+    return lockedUntil;
+}
+
+public void setLockedUntil(LocalDateTime lockedUntil) {
+    this.lockedUntil = lockedUntil;
+}
+
+public LocalDateTime getLastLoginAt() {
+    return lastLoginAt;
+}
+
+public void setLastLoginAt(LocalDateTime lastLoginAt) {
+    this.lastLoginAt = lastLoginAt;
+}
+public int getFailedOtpAttempts() {
+    return failedOtpAttempts;
+}
+
+public void setFailedOtpAttempts(int failedOtpAttempts) {
+    this.failedOtpAttempts = failedOtpAttempts;
+}
+
+public LocalDateTime getOtpLockedUntil() {
+    return otpLockedUntil;
+}
+
+public void setOtpLockedUntil(LocalDateTime otpLockedUntil) {
+    this.otpLockedUntil = otpLockedUntil;
+}
+
+public int getOtpLockLevel() {
+    return otpLockLevel;
+}
+
+public void setOtpLockLevel(int otpLockLevel) {
+    this.otpLockLevel = otpLockLevel;
+}
 }

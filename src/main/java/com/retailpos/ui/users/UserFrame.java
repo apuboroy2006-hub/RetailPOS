@@ -11,6 +11,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
@@ -160,9 +161,10 @@ public class UserFrame extends JFrame {
                 new DefaultTableModel(
                         new Object[]{
                                 "Username",
-                                "Full Name",
-                                "Role",
-                                "Status"
+                             "Full Name",
+                             "Email",
+                             "Role",
+                             "Status"
                         },
                         0
                 ) {
@@ -306,9 +308,10 @@ bottomPanel.add(
                 userModel.addRow(
                         new Object[]{
                                 user.getUsername(),
-                                user.getFullName(),
-                                user.getRole(),
-                                user.getStatus()
+        user.getFullName(),
+        user.getEmail(),
+        user.getRole(),
+        user.getStatus()
                         }
                 );
             }
@@ -377,123 +380,136 @@ bottomPanel.add(
         }
     }
 
-    private void addUser() {
+  private void addUser() {
 
-        JTextField usernameField =
-                new JTextField();
+    JTextField usernameField =
+            new JTextField();
 
-        JTextField fullNameField =
-                new JTextField();
+    JTextField fullNameField =
+            new JTextField();
 
-        JTextField passwordField =
-                new JTextField();
+    JTextField emailField =
+            new JTextField();
 
-        JComboBox<String> roleComboBox =
-                new JComboBox<>(
-                        new String[]{
-                                "ADMIN",
-                                "MANAGER",
-                                "CASHIER"
-                        }
-                );
+    JPasswordField passwordField =
+            new JPasswordField();
 
-        Object[] fields = {
-
-                "Username:",
-                usernameField,
-
-                "Full Name:",
-                fullNameField,
-
-                "Password:",
-                passwordField,
-
-                "Role:",
-                roleComboBox
-        };
-
-        int result =
-                JOptionPane.showConfirmDialog(
-                        this,
-                        fields,
-                        "Add User",
-                        JOptionPane.OK_CANCEL_OPTION
-                );
-
-        if (result !=
-                JOptionPane.OK_OPTION) {
-
-            return;
-        }
-
-        String username =
-                usernameField
-                        .getText()
-                        .trim();
-
-        String fullName =
-                fullNameField
-                        .getText()
-                        .trim();
-
-        String password =
-                passwordField
-                        .getText();
-
-        String role =
-                roleComboBox
-                        .getSelectedItem()
-                        .toString();
-
-        if (username.isEmpty()
-                || fullName.isEmpty()
-                || password.isEmpty()) {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "All fields are required.",
-                    "Validation",
-                    JOptionPane.WARNING_MESSAGE
+    JComboBox<String> roleComboBox =
+            new JComboBox<>(
+                    new String[]{
+                            "MANAGER",
+                            "CASHIER"
+                    }
             );
 
-            return;
-        }
+    Object[] fields = {
 
-        try {
+            "Username:",
+            usernameField,
 
-            userService.createUser(
-                    username,
-                    fullName,
-                    password,
-                    role
-            );
-        auditLogService.log(
-        loggedInUser.getId(),
-        loggedInUser.getUsername(),
-        "USER_CREATED",
-        "USERS",
-        "User created: " + username
-);
-            JOptionPane.showMessageDialog(
+            "Full Name:",
+            fullNameField,
+
+            "Email:",
+            emailField,
+
+            "Password:",
+            passwordField,
+
+            "Role:",
+            roleComboBox
+    };
+
+    int result =
+            JOptionPane.showConfirmDialog(
                     this,
-                    "User created successfully.",
+                    fields,
                     "Add User",
-                    JOptionPane.INFORMATION_MESSAGE
+                    JOptionPane.OK_CANCEL_OPTION
             );
 
-            loadUsers();
+    if (result != JOptionPane.OK_OPTION) {
 
-        } catch (Exception ex) {
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    ex.getMessage(),
-                    "Add User Error",
-                    JOptionPane.ERROR_MESSAGE
-            );
-        }
+        return;
     }
 
+    String username =
+            usernameField
+                    .getText()
+                    .trim();
+
+    String fullName =
+            fullNameField
+                    .getText()
+                    .trim();
+
+    String email =
+            emailField
+                    .getText()
+                    .trim();
+
+    String password =
+            new String(
+                    passwordField.getPassword()
+            );
+
+    String role =
+            roleComboBox
+                    .getSelectedItem()
+                    .toString();
+
+    if (username.isEmpty()
+            || fullName.isEmpty()
+            || email.isEmpty()
+            || password.isEmpty()) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                "All fields are required.",
+                "Validation",
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        return;
+    }
+
+    try {
+
+        userService.createUser(
+                username,
+                password,
+                fullName,
+                email,
+                role
+        );
+
+        auditLogService.log(
+                loggedInUser.getId(),
+                loggedInUser.getUsername(),
+                "USER_CREATED",
+                "USERS",
+                "User created: " + username
+        );
+
+        JOptionPane.showMessageDialog(
+                this,
+                "User created successfully.",
+                "Add User",
+                JOptionPane.INFORMATION_MESSAGE
+        );
+
+        loadUsers();
+
+    } catch (Exception ex) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                ex.getMessage(),
+                "Add User Error",
+                JOptionPane.ERROR_MESSAGE
+        );
+    }
+}
    private void editUser() {
 
     int selectedRow =
@@ -548,6 +564,13 @@ bottomPanel.add(
                     user.getFullName()
             );
 
+    JTextField emailField =
+            new JTextField(
+                    user.getEmail() != null
+                            ? user.getEmail()
+                            : ""
+            );
+
     JComboBox<String> roleComboBox =
             new JComboBox<>(
                     new String[]{
@@ -583,6 +606,9 @@ bottomPanel.add(
             "Full Name:",
             fullNameField,
 
+            "Email:",
+            emailField,
+
             "Role:",
             roleComboBox,
 
@@ -598,14 +624,18 @@ bottomPanel.add(
                     JOptionPane.OK_CANCEL_OPTION
             );
 
-    if (result !=
-            JOptionPane.OK_OPTION) {
+    if (result != JOptionPane.OK_OPTION) {
 
         return;
     }
 
     String fullName =
             fullNameField
+                    .getText()
+                    .trim();
+
+    String email =
+            emailField
                     .getText()
                     .trim();
 
@@ -619,11 +649,24 @@ bottomPanel.add(
                     .getSelectedItem()
                     .toString();
 
-    if (fullName.isEmpty()) {
+    if (fullName.isEmpty()
+            || email.isEmpty()) {
 
         JOptionPane.showMessageDialog(
                 this,
-                "Full name is required.",
+                "Full name and email are required.",
+                "Validation",
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        return;
+    }
+
+    if (!email.contains("@")) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                "Please enter a valid email address.",
                 "Validation",
                 JOptionPane.WARNING_MESSAGE
         );
@@ -637,6 +680,10 @@ bottomPanel.add(
                 fullName
         );
 
+        user.setEmail(
+                email
+        );
+
         user.setRole(
                 role
         );
@@ -648,13 +695,15 @@ bottomPanel.add(
         userService.updateUser(
                 user
         );
+
         auditLogService.log(
-        loggedInUser.getId(),
-        loggedInUser.getUsername(),
-        "USER_UPDATED",
-        "USERS",
-        "User updated: " + user.getUsername()
-);
+                loggedInUser.getId(),
+                loggedInUser.getUsername(),
+                "USER_UPDATED",
+                "USERS",
+                "User updated: " + user.getUsername()
+        );
+
         JOptionPane.showMessageDialog(
                 this,
                 "User updated successfully.",
@@ -813,22 +862,22 @@ private void changePassword() {
                     )
                     .toString();
 
-    JTextField oldPasswordField =
-            new JTextField();
+    JPasswordField newPasswordField =
+            new JPasswordField();
 
-    JTextField newPasswordField =
-            new JTextField();
+    JPasswordField confirmPasswordField =
+            new JPasswordField();
 
     Object[] fields = {
 
             "Username:",
             new JLabel(username),
 
-            "Current Password:",
-            oldPasswordField,
-
             "New Password:",
-            newPasswordField
+            newPasswordField,
+
+            "Confirm Password:",
+            confirmPasswordField
     };
 
     int result =
@@ -839,26 +888,72 @@ private void changePassword() {
                     JOptionPane.OK_CANCEL_OPTION
             );
 
-    if (result !=
-            JOptionPane.OK_OPTION) {
+    if (result != JOptionPane.OK_OPTION) {
+        return;
+    }
+
+    String newPassword =
+            new String(
+                    newPasswordField.getPassword()
+            );
+
+    String confirmPassword =
+            new String(
+                    confirmPasswordField.getPassword()
+            );
+
+    if (newPassword.isBlank()) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                "New password is required.",
+                "Change Password",
+                JOptionPane.ERROR_MESSAGE
+        );
+
+        return;
+    }
+
+    if (newPassword.length() < 6) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                "New password must contain at least 6 characters.",
+                "Change Password",
+                JOptionPane.ERROR_MESSAGE
+        );
+
+        return;
+    }
+
+    if (!newPassword.equals(confirmPassword)) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                "Passwords do not match.",
+                "Change Password",
+                JOptionPane.ERROR_MESSAGE
+        );
 
         return;
     }
 
     try {
 
-        userService.changePassword(
+        userService.resetPassword(
                 username,
-                oldPasswordField.getText(),
-                newPasswordField.getText()
+                newPassword
         );
+
         auditLogService.log(
-        loggedInUser.getId(),
-        loggedInUser.getUsername(),
-        "PASSWORD_CHANGED",
-        "USERS",
-        "Password changed for user: " + username
-);
+                loggedInUser.getId(),
+                loggedInUser.getUsername(),
+                "PASSWORD_CHANGED",
+                "USERS",
+                "Password changed for user: "
+                        + username
+        );
+
         JOptionPane.showMessageDialog(
                 this,
                 "Password changed successfully.",

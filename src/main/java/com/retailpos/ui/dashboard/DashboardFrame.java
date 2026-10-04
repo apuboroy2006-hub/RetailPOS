@@ -30,6 +30,7 @@ import com.retailpos.ui.purchases.PurchaseFrame;
 import com.retailpos.ui.purchases.PurchaseHistoryFrame;
 import com.retailpos.ui.reports.ReportsFrame;
 import com.retailpos.ui.sales.SalesFrame;
+import com.retailpos.ui.settings.DeviceManagementFrame;
 import com.retailpos.ui.settings.SettingsFrame;
 import com.retailpos.ui.suppliers.SupplierFrame;
 import com.retailpos.ui.users.UserFrame;
@@ -153,14 +154,14 @@ auditLogService =
         JPanel sidebar =
                 new JPanel();
 
-        sidebar.setLayout(
-                new GridLayout(
-                        11,
-                        1,
-                        5,
-                        5
-                )
-        );
+       sidebar.setLayout(
+        new GridLayout(
+                0,
+                1,
+                5,
+                5
+        )
+);
 
         sidebar.setBorder(
                 BorderFactory.createEmptyBorder(
@@ -168,20 +169,57 @@ auditLogService =
                 )
         );
 
-        String[] menuItems = {
-                "Dashboard",
-                "POS",
-                "Products",
-                "Inventory",
-                "Sales",
-                "Purchases",
-                "Customers",
-                "Suppliers",
-                "Users",
-                "Reports",
-                "Settings"
-        };
+       String[] menuItems;
 
+String role =
+        loggedInUser.getRole();
+
+if ("ADMIN".equalsIgnoreCase(role)) {
+
+    menuItems = new String[] {
+            "Dashboard",
+            "POS",
+            "Products",
+            "Inventory",
+            "Sales",
+            "Purchases",
+            "Customers",
+            "Suppliers",
+            "Users",
+            "Reports",
+            "Device Management",
+            "Settings"
+    };
+
+} else if ("MANAGER".equalsIgnoreCase(role)) {
+
+    menuItems = new String[] {
+            "Dashboard",
+            "POS",
+            "Products",
+            "Inventory",
+            "Sales",
+            "Purchases",
+            "Customers",
+            "Suppliers",
+            "Reports"
+    };
+
+} else if ("CASHIER".equalsIgnoreCase(role)) {
+
+    menuItems = new String[] {
+            "Dashboard",
+            "POS",
+            "Sales",
+            "Customers"
+    };
+
+} else {
+
+    menuItems = new String[] {
+            "Dashboard"
+    };
+}
       for (String item : menuItems) {
 
     JButton button =
@@ -297,6 +335,27 @@ if (item.equals("Users")) {
         new UserFrame(loggedInUser);
 
 userFrame.setVisible(true);
+    });
+}
+if (item.equals("Device Management")) {
+
+    button.addActionListener(e -> {
+
+        DeviceManagementFrame deviceManagementFrame =
+                new DeviceManagementFrame();
+
+        deviceManagementFrame.setVisible(true);
+    });
+}
+
+if (item.equals("Settings")) {
+
+    button.addActionListener(e -> {
+
+        SettingsFrame settingsFrame =
+                new SettingsFrame(loggedInUser);
+
+        settingsFrame.setVisible(true);
     });
 }
 if (item.equals("Settings")) {

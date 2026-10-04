@@ -20,11 +20,14 @@ public class UserService {
             String username,
             String password,
             String fullName,
+            String email,
             String role
     ) {
 
         if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("Username is required.");
+            throw new IllegalArgumentException(
+                    "Username is required."
+            );
         }
 
         if (password == null || password.length() < 6) {
@@ -34,11 +37,27 @@ public class UserService {
         }
 
         if (fullName == null || fullName.isBlank()) {
-            throw new IllegalArgumentException("Full name is required.");
+            throw new IllegalArgumentException(
+                    "Full name is required."
+            );
+        }
+
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Email is required."
+            );
+        }
+
+        if (!email.contains("@")) {
+            throw new IllegalArgumentException(
+                    "Please enter a valid email address."
+            );
         }
 
         if (role == null || role.isBlank()) {
-            throw new IllegalArgumentException("Role is required.");
+            throw new IllegalArgumentException(
+                    "Role is required."
+            );
         }
 
         if (userRepository.findByUsername(username).isPresent()) {
@@ -47,23 +66,29 @@ public class UserService {
             );
         }
 
-        String passwordHash = BCrypt.hashpw(
-                password,
-                BCrypt.gensalt()
-        );
+        String passwordHash =
+                BCrypt.hashpw(
+                        password,
+                        BCrypt.gensalt()
+                );
 
-        User user = new User(
-                username,
-                passwordHash,
-                fullName,
-                role,
-                "ACTIVE"
-        );
+        User user =
+                new User(
+                        username,
+                        passwordHash,
+                        fullName,
+                        role,
+                        "ACTIVE"
+                );
+
+        user.setEmail(email);
 
         userRepository.save(user);
     }
 
-    public Optional<User> findByUsername(String username) {
+    public Optional<User> findByUsername(
+            String username
+    ) {
         return userRepository.findByUsername(username);
     }
 
@@ -76,7 +101,10 @@ public class UserService {
             String passwordHash
     ) {
 
-        return BCrypt.checkpw(password, passwordHash);
+        return BCrypt.checkpw(
+                password,
+                passwordHash
+        );
     }
 
     public void updateUser(User user) {
@@ -86,69 +114,111 @@ public class UserService {
     public void deleteUser(String id) {
         userRepository.deleteById(id);
     }
-   public void changePassword(
-        String username,
-        String oldPassword,
-        String newPassword
-) {
 
-    if (username == null ||
-            username.isBlank()) {
+    // User changes their own password
+    public void changePassword(
+            String username,
+            String oldPassword,
+            String newPassword
+    ) {
 
-        throw new IllegalArgumentException(
-                "Username is required."
-        );
-    }
+        if (username == null ||
+                username.isBlank()) {
 
-    if (oldPassword == null ||
-            oldPassword.isBlank()) {
-
-        throw new IllegalArgumentException(
-                "Current password is required."
-        );
-    }
-
-    if (newPassword == null ||
-            newPassword.length() < 6) {
-
-        throw new IllegalArgumentException(
-                "New password must contain at least 6 characters."
-        );
-    }
-
-    User user =
-            userRepository
-                    .findByUsername(
-                            username
-                    )
-                    .orElseThrow(
-                            () -> new IllegalArgumentException(
-                                    "User not found."
-                            )
-                    );
-
-    if (!BCrypt.checkpw(
-            oldPassword,
-            user.getPasswordHash()
-    )) {
-
-        throw new IllegalArgumentException(
-                "Current password is incorrect."
-        );
-    }
-
-    String newPasswordHash =
-            BCrypt.hashpw(
-                    newPassword,
-                    BCrypt.gensalt()
+            throw new IllegalArgumentException(
+                    "Username is required."
             );
+        }
 
-    user.setPasswordHash(
-            newPasswordHash
-    );
+        if (oldPassword == null ||
+                oldPassword.isBlank()) {
 
-    userRepository.update(
-            user
-    );
-}
+            throw new IllegalArgumentException(
+                    "Current password is required."
+            );
+        }
+
+        if (newPassword == null ||
+                newPassword.length() < 6) {
+
+            throw new IllegalArgumentException(
+                    "New password must contain at least 6 characters."
+            );
+        }
+
+        User user =
+                userRepository
+                        .findByUsername(username)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
+                                        "User not found."
+                                )
+                        );
+
+        if (!BCrypt.checkpw(
+                oldPassword,
+                user.getPasswordHash()
+        )) {
+
+            throw new IllegalArgumentException(
+                    "Current password is incorrect."
+            );
+        }
+
+        String newPasswordHash =
+                BCrypt.hashpw(
+                        newPassword,
+                        BCrypt.gensalt()
+                );
+
+        user.setPasswordHash(
+                newPasswordHash
+        );
+
+        userRepository.update(user);
+    }
+
+    // Admin resets another user's password
+    public void resetPassword(
+            String username,
+            String newPassword
+    ) {
+
+        if (username == null ||
+                username.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Username is required."
+            );
+        }
+
+        if (newPassword == null ||
+                newPassword.length() < 6) {
+
+            throw new IllegalArgumentException(
+                    "New password must contain at least 6 characters."
+            );
+        }
+
+        User user =
+                userRepository
+                        .findByUsername(username)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
+                                        "User not found."
+                                )
+                        );
+
+        String newPasswordHash =
+                BCrypt.hashpw(
+                        newPassword,
+                        BCrypt.gensalt()
+                );
+
+        user.setPasswordHash(
+                newPasswordHash
+        );
+
+        userRepository.update(user);
+    }
 }
