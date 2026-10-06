@@ -17,6 +17,8 @@ public class Product {
     private double sellingPrice;
     private int stockQuantity;
     private int minimumStock;
+    private String supplier;
+    private String status;
 
     public Product() {
     }
@@ -91,5 +93,21 @@ public class Product {
 
     public void setMinimumStock(int minimumStock) {
         this.minimumStock = minimumStock;
+    }
+
+    public String getSupplier() {
+        return supplier;
+    }
+
+    public void setSupplier(String supplier) {
+        this.supplier = supplier;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }
