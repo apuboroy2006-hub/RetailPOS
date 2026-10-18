@@ -22,7 +22,7 @@ import com.retailpos.model.User;
 import com.retailpos.repository.AuditLogRepository;
 import com.retailpos.repository.ProductRepository;
 import com.retailpos.repository.mongodb.AuditLogRepositoryImpl;
-import com.retailpos.repository.mongodb.ProductRepositoryImpl;
+import com.retailpos.repository.railway.RailwayProductRepositoryImpl;
 import com.retailpos.service.AuditLogService;
 import com.retailpos.service.ProductService;
 public class ProductFrame extends JFrame {
@@ -35,9 +35,8 @@ public class ProductFrame extends JFrame {
     private final AuditLogService auditLogService;
    public ProductFrame(User loggedInUser) {
         this.loggedInUser = loggedInUser;
-        ProductRepository productRepository =
-                new ProductRepositoryImpl();
-
+       ProductRepository productRepository =
+        new RailwayProductRepositoryImpl();
         productService =
                 new ProductService(productRepository);
         AuditLogRepository auditLogRepository =

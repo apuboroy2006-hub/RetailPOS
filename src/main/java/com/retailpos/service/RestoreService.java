@@ -16,64 +16,75 @@ public class RestoreService {
 
     private final MongoDatabase database;
 
-    private final List<String> collections =
-        Arrays.asList(
-                "users",
-                "settings",
-                "products",
-                "purchases",
-                "purchase_items",
-                "sales",
-                "sale_items",
-                "customers",
-                "suppliers",
-                "stock_transactions",
-                "audit_logs"
-        );
+    private final List<String> collections = Arrays.asList(
+            "users",
+            "settings",
+            "products",
+            "purchases",
+            "purchase_items",
+            "sales",
+            "sale_items",
+            "customers",
+            "suppliers",
+            "stock_transactions",
+            "audit_logs"
+    );
 
     public RestoreService() {
-
-        database =
-                DatabaseConfig.getDatabase();
+        database = DatabaseConfig.getDatabase();
     }
 
-    public void restoreBackup(
-            File backupFile
-    ) throws IOException {
+    public void restoreBackup(File backupFile) throws IOException {
 
-        String json =
-                Files.readString(
-                        backupFile.toPath()
-                );
+        String json = Files.readString(backupFile.toPath());
+        Document backup;
 
-        Document backup =
-                Document.parse(json);
+        try {
+            backup = Document.parse(json);
+        } catch (RuntimeException ex) {
+            throw new IOException("Invalid backup JSON file.", ex);
+        }
 
-        for (String collectionName :
-                collections) {
-
-            MongoCollection<Document>
-                    collection =
-                    database.getCollection(
-                            collectionName
-                    );
-
-            collection.deleteMany(
-                    new Document()
+        if (!"retail_pos".equals(backup.getString("database"))) {
+            throw new IOException(
+                    "Invalid backup: database name does not match Retail POS."
             );
+        }
 
-           List<Document> documents =
-        backup.getList(
-                collectionName,
-                Document.class
-        );
+        // Validate every collection before deleting any existing data.
+        for (String collectionName : collections) {
+            Object value = backup.get(collectionName);
 
-            if (documents != null &&
-                    !documents.isEmpty()) {
-
-                collection.insertMany(
-                        documents
+            if (!(value instanceof List<?> documents)) {
+                throw new IOException(
+                        "Invalid backup: missing or invalid collection: "
+                                + collectionName
                 );
+            }
+
+            for (Object item : documents) {
+                if (!(item instanceof Document)) {
+                    throw new IOException(
+                            "Invalid backup: invalid document in collection: "
+                                    + collectionName
+                    );
+                }
+            }
+        }
+
+        // All collections passed validation; restoration may now begin.
+        for (String collectionName : collections) {
+            MongoCollection<Document> collection =
+                    database.getCollection(collectionName);
+
+            collection.deleteMany(new Document());
+
+            @SuppressWarnings("unchecked")
+            List<Document> documents =
+                    (List<Document>) backup.get(collectionName);
+
+            if (!documents.isEmpty()) {
+                collection.insertMany(documents);
             }
         }
     }

@@ -91,6 +91,9 @@ public class UserService {
     ) {
         return userRepository.findByUsername(username);
     }
+    public Optional<User> findById(String id) {
+    return userRepository.findById(id);
+}
 
     public List<User> getAllUsers() {
         return userRepository.findAll();

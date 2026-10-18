@@ -1,7 +1,5 @@
 package com.retailpos.security;
 
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.Properties;
 
 import jakarta.mail.Authenticator;
@@ -12,132 +10,77 @@ import jakarta.mail.Transport;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 
-
 public class EmailService {
 
     private final String username;
     private final String password;
 
-public EmailService() {
+    public EmailService() {
+        username = System.getenv("RETAILPOS_SMTP_USERNAME");
+        password = System.getenv("RETAILPOS_SMTP_PASSWORD");
 
-    Properties config =
-            new Properties();
-
-    try (
-            FileInputStream input =
-                    new FileInputStream(
-                            "config/smtp.properties"
-                    )
-    ) {
-
-        config.load(input);
-
-    } catch (IOException e) {
-
-        throw new IllegalStateException(
-                "Unable to load SMTP configuration.",
-                e
-        );
-    }
-
-    username =
-            config.getProperty(
-                    "SMTP_USERNAME"
+        if (username == null || username.isBlank()) {
+            throw new IllegalStateException(
+                    "RETAILPOS_SMTP_USERNAME is not configured."
             );
+        }
 
-    password =
-            config.getProperty(
-                    "SMTP_PASSWORD"
+        if (password == null || password.isBlank()) {
+            throw new IllegalStateException(
+                    "RETAILPOS_SMTP_PASSWORD is not configured."
             );
-
-    if (username == null || username.isBlank()) {
-
-        throw new IllegalStateException(
-                "SMTP_USERNAME is not configured."
-        );
+        }
     }
 
-    if (password == null || password.isBlank()) {
+    public EmailService(String username, String password) {
+        this.username = username;
+        this.password = password;
 
-        throw new IllegalStateException(
-                "SMTP_PASSWORD is not configured."
-        );
+        if (username == null || username.isBlank()) {
+            throw new IllegalStateException(
+                    "SMTP username is required."
+            );
+        }
+
+        if (password == null || password.isBlank()) {
+            throw new IllegalStateException(
+                    "SMTP password is required."
+            );
+        }
     }
-}
-public EmailService(
-        String username,
-        String password
-) {
-
-    this.username = username;
-    this.password = password;
-
-    if (username == null || username.isBlank()) {
-        throw new IllegalStateException(
-                "SMTP username is required."
-        );
-    }
-
-    if (password == null || password.isBlank()) {
-        throw new IllegalStateException(
-                "SMTP password is required."
-        );
-    }
-}
 
     public void sendOtpEmail(
             String recipientEmail,
             String username,
             String otp
     ) {
-
         try {
-
             Properties properties = new Properties();
 
-            properties.put(
-                    "mail.smtp.host",
-                    "smtp.gmail.com"
+            properties.put("mail.smtp.host", "smtp.gmail.com");
+            properties.put("mail.smtp.port", "587");
+            properties.put("mail.smtp.auth", "true");
+            properties.put("mail.smtp.starttls.enable", "true");
+
+            Session session = Session.getInstance(
+                    properties,
+                    new Authenticator() {
+                        @Override
+                        protected PasswordAuthentication
+                        getPasswordAuthentication() {
+                            return new PasswordAuthentication(
+                                    EmailService.this.username,
+                                    EmailService.this.password
+                            );
+                        }
+                    }
             );
 
-            properties.put(
-                    "mail.smtp.port",
-                    "587"
+            Message message = new MimeMessage(session);
+
+            message.setFrom(
+                    new InternetAddress(EmailService.this.username)
             );
-
-            properties.put(
-                    "mail.smtp.auth",
-                    "true"
-            );
-
-            properties.put(
-                    "mail.smtp.starttls.enable",
-                    "true"
-            );
-
-            Session session =
-                    Session.getInstance(
-                            properties,
-                            new Authenticator() {
-
-                                @Override
-                                protected PasswordAuthentication
-                                getPasswordAuthentication() {
-
-                                    return new PasswordAuthentication(
-                                            EmailService.this.username,
-                                            EmailService.this.password
-                                    );
-                                }
-                            }
-                    );
-
-            Message message =
-                    new MimeMessage(session);
-
-           message.setFrom(
-        new InternetAddress(EmailService.this.username)
-);
 
             message.setRecipients(
                     Message.RecipientType.TO,
@@ -161,7 +104,6 @@ public EmailService(
             Transport.send(message);
 
         } catch (Exception e) {
-
             throw new RuntimeException(
                     "Failed to send OTP email.",
                     e

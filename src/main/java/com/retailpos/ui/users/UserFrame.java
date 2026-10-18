@@ -307,11 +307,11 @@ bottomPanel.add(
 
                 userModel.addRow(
                         new Object[]{
-                                user.getUsername(),
-        user.getFullName(),
-        user.getEmail(),
-        user.getRole(),
-        user.getStatus()
+                           user.getUsername(),
+                           user.getFullName(),
+                           user.getEmail(),
+                           user.getRole(),
+                           user.getStatus()
                         }
                 );
             }

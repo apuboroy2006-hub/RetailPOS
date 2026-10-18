@@ -2,7 +2,7 @@ package com.retailpos.ui.products;
 
 import com.retailpos.model.Product;
 import com.retailpos.repository.ProductRepository;
-import com.retailpos.repository.mongodb.ProductRepositoryImpl;
+import com.retailpos.repository.railway.RailwayProductRepositoryImpl;
 import com.retailpos.service.ProductService;
 
 import javax.swing.*;
@@ -41,7 +41,7 @@ public class ProductDialog extends JDialog {
         existingProduct = product;
 
         ProductRepository productRepository =
-                new ProductRepositoryImpl();
+        new RailwayProductRepositoryImpl();
 
         productService =
                 new ProductService(productRepository);
@@ -419,7 +419,6 @@ public class ProductDialog extends JDialog {
                     JOptionPane.ERROR_MESSAGE
             );
 
-            e.printStackTrace();
         }
     }
 

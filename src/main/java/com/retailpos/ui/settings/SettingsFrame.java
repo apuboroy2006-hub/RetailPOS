@@ -18,6 +18,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import java.util.regex.Pattern;
 
 import com.retailpos.model.Settings;
 import com.retailpos.model.User;
@@ -529,7 +530,49 @@ auditLogButton.addActionListener(
     private void saveSettings() {
 
         try {
+             String storeName = storeNameField.getText().trim();
+        String email = emailField.getText().trim();
+        String phone = phoneField.getText().trim();
 
+        if (storeName.isBlank()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Store Name is required.",
+                    "Validation Error",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            storeNameField.requestFocusInWindow();
+            return;
+        }
+
+        if (!email.isBlank()
+                && !java.util.regex.Pattern.matches(
+                        "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$",
+                        email)) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Please enter a valid email address.",
+                    "Validation Error",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            emailField.requestFocusInWindow();
+            return;
+        }
+
+        if (!phone.isBlank()) {
+            String digits = phone.replaceAll("[\\s()+-]", "");
+
+            if (!digits.matches("\\d{10,15}")) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Phone must contain 10 to 15 digits.",
+                        "Validation Error",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                phoneField.requestFocusInWindow();
+                return;
+            }
+        }
             String invoicePrefix =
                     invoicePrefixField
                             .getText()

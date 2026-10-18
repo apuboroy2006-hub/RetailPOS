@@ -372,16 +372,7 @@ if (item.equals("Settings")) {
         settingsFrame.setVisible(true);
     });
 }
-if (item.equals("Settings")) {
 
-    button.addActionListener(e -> {
-
-        SettingsFrame settingsFrame =
-        new SettingsFrame(loggedInUser);
-
-        settingsFrame.setVisible(true);
-    });
-}
     sidebar.add(button);
 }
 

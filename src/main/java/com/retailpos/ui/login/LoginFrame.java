@@ -452,7 +452,6 @@ sessionService =
                     "Login error."
             );
 
-            e.printStackTrace();
         }
     }
 }

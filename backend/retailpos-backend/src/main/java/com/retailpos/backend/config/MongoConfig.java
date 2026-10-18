@@ -18,7 +18,7 @@ public class MongoConfig {
     private static final String DATABASE_NAME = "retail_pos";
 
     private static final String MONGO_USER =
-            "apuboroy2006_db_user";
+            System.getenv("RETAILPOS_MONGO_USER");
 
     private static final String MONGO_PASSWORD =
             System.getenv("RETAILPOS_MONGO_PASSWORD");
@@ -42,11 +42,7 @@ public class MongoConfig {
         MongoClientSettings settings =
                 MongoClientSettings.builder()
                         .applyConnectionString(
-                                new ConnectionString(
-                                        "mongodb+srv://cluster0.wnoucsp.mongodb.net/"
-                                                + DATABASE_NAME
-                                                + "?appName=Cluster0"
-                                )
+                                new ConnectionString(System.getenv("RETAILPOS_MONGO_URI"))
                         )
                         .credential(credential)
                         .build();

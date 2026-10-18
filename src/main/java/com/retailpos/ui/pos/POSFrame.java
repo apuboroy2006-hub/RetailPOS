@@ -5,6 +5,7 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.util.List;
+import java.util.Optional;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -49,7 +50,7 @@ private Customer selectedCustomer;
     private final ProductService productService;
 
     private JTextField searchField;
-
+    private JTextField barcodeField;
     private JTable cartTable;
 
     private DefaultTableModel cartModel;
@@ -230,6 +231,31 @@ private void selectCustomer() {
         topPanel.add(searchField);
 
         topPanel.add(searchButton);
+        // =========================
+// BARCODE SCANNER
+// =========================
+
+JLabel barcodeLabel =
+        new JLabel("Scan Barcode:");
+
+barcodeField =
+        new JTextField(18);
+
+barcodeField.addActionListener(
+        e -> scanBarcode()
+);
+
+topPanel.add(
+        Box.createHorizontalStrut(20)
+);
+
+topPanel.add(
+        barcodeLabel
+);
+
+topPanel.add(
+        barcodeField
+);
 
         add(
                 topPanel,
@@ -557,7 +583,46 @@ bottomPanel.add(
                 BorderLayout.SOUTH
         );
     }
+   // =========================
+// SCAN BARCODE
+// =========================
 
+private void scanBarcode() {
+
+    String barcode =
+            barcodeField.getText().trim();
+
+    if (barcode.isEmpty()) {
+        return;
+    }
+
+    Optional<Product> product =
+            productService.findByBarcode(barcode);
+
+    if (product.isEmpty()) {
+
+        JOptionPane.showMessageDialog(
+                this,
+                "No product found for barcode: "
+                        + barcode,
+                "Barcode Not Found",
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        barcodeField.selectAll();
+        barcodeField.requestFocus();
+
+        return;
+    }
+
+    addProductToCart(
+            product.get()
+    );
+
+    barcodeField.setText("");
+
+    barcodeField.requestFocus();
+}
     // =========================
     // SEARCH PRODUCTS
     // =========================

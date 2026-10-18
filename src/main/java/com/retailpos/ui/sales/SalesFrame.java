@@ -29,7 +29,6 @@ public class SalesFrame extends JFrame {
 
     public SalesFrame() {
 
-        System.out.println("SALES FRAME OPENED");
 
         SaleRepository saleRepository =
                 new SaleRepositoryImpl();
