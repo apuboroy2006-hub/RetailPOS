@@ -2,7 +2,7 @@ package com.example.retailpos_backend.controller;
 
 import com.example.retailpos_backend.model.Product;
 import com.example.retailpos_backend.repository.ProductRepository;
-
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -88,7 +88,37 @@ public class ProductController {
 
         return ResponseEntity.ok(updatedProduct);
     }
+     
+// =========================
+// UPDATE PRODUCT SUPPLIER ONLY
+// =========================
 
+@PatchMapping("/{id}/supplier")
+public ResponseEntity<Product> updateProductSupplier(
+        @PathVariable String id,
+        @RequestBody java.util.Map<String, String> request) {
+
+    Optional<Product> optionalProduct =
+            productRepository.findById(id);
+
+    if (optionalProduct.isEmpty()) {
+        return ResponseEntity.notFound().build();
+    }
+
+    String supplier = request.get("supplier");
+
+    if (supplier == null || supplier.isBlank()) {
+        return ResponseEntity.badRequest().build();
+    }
+
+    Product product = optionalProduct.get();
+    product.setSupplier(supplier.trim());
+
+    Product updatedProduct =
+            productRepository.save(product);
+
+    return ResponseEntity.ok(updatedProduct);
+}
     // =========================
     // DELETE PRODUCT
     // =========================
