@@ -5,7 +5,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
@@ -53,6 +52,7 @@ public class SalesFrame extends JFrame {
         );
 
         String[] columns = {
+                "Select",
                 "Invoice",
                 "Customer",
                 "Date",
@@ -76,7 +76,12 @@ public class SalesFrame extends JFrame {
                             int row,
                             int column
                     ) {
-                        return false;
+                        return column == 0;
+                    }
+
+                    @Override
+                    public Class<?> getColumnClass(int column) {
+                        return column == 0 ? Boolean.class : Object.class;
                     }
                 };
 
@@ -113,6 +118,10 @@ searchPanel.add(
         java.awt.BorderLayout.CENTER
 );
 
+JButton searchButton = new JButton("Search");
+searchButton.addActionListener(e -> searchSales());
+searchPanel.add(searchButton, java.awt.BorderLayout.EAST);
+
 add(
         searchPanel,
         java.awt.BorderLayout.NORTH
@@ -130,6 +139,15 @@ refreshButton =
 
 JPanel bottomPanel =
         new JPanel();
+javax.swing.JCheckBox selectAllCheckBox = new javax.swing.JCheckBox("Select All");
+selectAllCheckBox.addActionListener(e -> {
+    boolean checked = selectAllCheckBox.isSelected();
+    for (int row = 0; row < salesModel.getRowCount(); row++) {
+        salesModel.setValueAt(checked, row, 0);
+    }
+});
+bottomPanel.add(selectAllCheckBox);
+
 
 bottomPanel.add(
         detailsButton
@@ -153,128 +171,8 @@ refreshButton.addActionListener(e -> {
     searchField.setText("");
     loadSales();
 });
-printButton.addActionListener(e -> {
+printButton.addActionListener(e -> printSelectedInvoices());
 
-    int selectedRow =
-            salesTable.getSelectedRow();
-
-    if (selectedRow == -1) {
-
-        JOptionPane.showMessageDialog(
-                this,
-                "Please select a sale first.",
-                "Print Invoice",
-                JOptionPane.INFORMATION_MESSAGE
-        );
-
-        return;
-    }
-
-    String invoiceNumber =
-            salesTable.getValueAt(
-                    selectedRow,
-                    0
-            ).toString();
-
-    java.util.Optional<Sale> saleOptional =
-        saleService.findByInvoiceNumber(
-                invoiceNumber
-        );
-
-if (saleOptional.isEmpty()) {
-
-    JOptionPane.showMessageDialog(
-            this,
-            "Sale not found.",
-            "Print Invoice",
-            JOptionPane.ERROR_MESSAGE
-    );
-
-    return;
-}
-
-Sale sale =
-        saleOptional.get();
-
-java.util.List<SaleItem> items =
-        saleService.getSaleItems(
-                sale.getId()
-        );
-
-String invoiceText =
-        createInvoiceText(
-                sale,
-                items
-        );
-
-JTextArea invoiceArea =
-        new JTextArea(
-                invoiceText
-        );
-
-invoiceArea.setEditable(false);
-
-invoiceArea.setFont(
-        new java.awt.Font(
-                java.awt.Font.MONOSPACED,
-                java.awt.Font.PLAIN,
-                14
-        )
-);
-
-JScrollPane invoiceScrollPane =
-        new JScrollPane(
-                invoiceArea
-        );
-
-invoiceScrollPane.setPreferredSize(
-        new java.awt.Dimension(
-                500,
-                500
-        )
-);
-
-JOptionPane.showMessageDialog(
-        this,
-        invoiceScrollPane,
-        "Invoice Preview",
-        JOptionPane.INFORMATION_MESSAGE
-);
-try {
-
-    boolean complete =
-            invoiceArea.print();
-
-    if (complete) {
-
-        JOptionPane.showMessageDialog(
-                this,
-                "Invoice printed successfully.",
-                "Print Invoice",
-                JOptionPane.INFORMATION_MESSAGE
-        );
-
-    } else {
-
-        JOptionPane.showMessageDialog(
-                this,
-                "Printing was cancelled.",
-                "Print Invoice",
-                JOptionPane.WARNING_MESSAGE
-        );
-    }
-
-} catch (java.awt.print.PrinterException ex) {
-
-    JOptionPane.showMessageDialog(
-            this,
-            "Printing failed: "
-                    + ex.getMessage(),
-            "Print Invoice",
-            JOptionPane.ERROR_MESSAGE
-    );
-}
-});
         detailsButton.addActionListener(e -> {
 
             int selectedRow =
@@ -293,10 +191,7 @@ try {
             }
 
             String invoiceNumber =
-                    salesTable.getValueAt(
-                            selectedRow,
-                            0
-                    ).toString();
+                    salesTable.getValueAt(selectedRow, 1).toString();
 
             java.util.Optional<Sale> saleOptional =
                     saleService.findByInvoiceNumber(
@@ -399,6 +294,117 @@ try {
         loadSales();
     }
 
+    private void printSelectedInvoices() {
+        if (salesTable.isEditing()) {
+            salesTable.getCellEditor().stopCellEditing();
+        }
+
+        int checkedCount = 0;
+        for (int row = 0; row < salesModel.getRowCount(); row++) {
+            if (Boolean.TRUE.equals(salesModel.getValueAt(row, 0))) {
+                checkedCount++;
+            }
+        }
+
+        if (checkedCount == 0) {
+            JOptionPane.showMessageDialog(this,
+                    "No invoices are checked. Tick the checkbox in the Select column first.",
+                    "Print Invoices", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        java.util.List<String> invoiceTexts = new java.util.ArrayList<>();
+
+        for (int row = 0; row < salesModel.getRowCount(); row++) {
+            if (!Boolean.TRUE.equals(salesModel.getValueAt(row, 0))) {
+                continue;
+            }
+
+            String invoiceNumber = String.valueOf(salesModel.getValueAt(row, 1));
+            java.util.Optional<Sale> found =
+                    saleService.findByInvoiceNumber(invoiceNumber);
+
+            if (found.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Sale not found: " + invoiceNumber,
+                        "Print Invoices", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            Sale sale = found.get();
+            invoiceTexts.add(createInvoiceText(
+                    sale, saleService.getSaleItems(sale.getId())));
+        }
+
+        if (invoiceTexts.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select at least one invoice checkbox.",
+                    "Print Invoices", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        JOptionPane.showMessageDialog(
+        this,
+        "Checked invoices: " + checkedCount
+                + "\nInvoices prepared for printing: " + invoiceTexts.size(),
+        "Print Diagnostic",
+        JOptionPane.INFORMATION_MESSAGE
+);
+        java.awt.print.PrinterJob job = java.awt.print.PrinterJob.getPrinterJob();
+        java.awt.print.PageFormat format = job.defaultPage();
+
+        job.setPrintable((graphics, pageFormat, pageIndex) -> {
+            if (pageIndex < 0 || pageIndex >= invoiceTexts.size()) {
+                return java.awt.print.Printable.NO_SUCH_PAGE;
+            }
+
+            java.awt.Graphics2D g = (java.awt.Graphics2D) graphics.create();
+            try {
+                g.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
+
+                String[] lines = invoiceTexts.get(pageIndex).split("\\R", -1);
+                java.awt.Font font = new java.awt.Font(
+                        java.awt.Font.MONOSPACED, java.awt.Font.PLAIN, 10);
+                g.setFont(font);
+                java.awt.FontMetrics metrics = g.getFontMetrics();
+
+                double maxWidth = 1;
+                for (String line : lines) {
+                    maxWidth = Math.max(maxWidth, metrics.stringWidth(line));
+                }
+
+                double scale = Math.min(1.0, Math.min(
+                        pageFormat.getImageableWidth() / maxWidth,
+                        pageFormat.getImageableHeight()
+                                / Math.max(1, lines.length * metrics.getHeight() + 10)));
+
+                g.scale(scale, scale);
+                int y = metrics.getAscent();
+                for (String line : lines) {
+                    g.drawString(line, 0, y);
+                    y += metrics.getHeight();
+                }
+
+                return java.awt.print.Printable.PAGE_EXISTS;
+            } finally {
+                g.dispose();
+            }
+        }, format);
+
+        if (!job.printDialog()) {
+            return;
+        }
+
+        try {
+            job.print();
+            JOptionPane.showMessageDialog(this,
+                    invoiceTexts.size() + " invoice(s) sent to print.",
+                    "Print Invoices", JOptionPane.INFORMATION_MESSAGE);
+        } catch (java.awt.print.PrinterException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Printing failed: " + ex.getMessage(),
+                    "Print Invoices", JOptionPane.ERROR_MESSAGE);
+        }
+    }
     private void loadSales() {
 
         salesModel.setRowCount(0);
@@ -410,6 +416,7 @@ try {
 
             salesModel.addRow(
                     new Object[]{
+                            Boolean.FALSE,
                             sale.getInvoiceNumber(),
                             sale.getCustomerName(),
                             sale.getCreatedAt(),
@@ -457,6 +464,7 @@ try {
 
             salesModel.addRow(
                     new Object[]{
+                            Boolean.FALSE,
                             sale.getInvoiceNumber(),
                             sale.getCustomerName(),
                             sale.getCreatedAt(),

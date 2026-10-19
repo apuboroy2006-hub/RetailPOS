@@ -25,3 +25,19 @@ src/main/java/com/retailpos/EmailTest.java
 *.pre-github.bak
 src/main/java/com/retailpos/web/RetailPosWebServer.java.backup
 src/main/java/com/retailpos/web/RetailPosWebServer.java.currency-backup
+ 
+# Local backups and secrets - do not publish
+backups/
+**/backups/
+*.backup
+*.backup-*
+*.bak
+*.pre-github.bak
+.env
+.env.*
+# Additional local source backups
+*backup*.java
+*.before-*
+# Temporary source backups
+*before-*.java
+*before-*

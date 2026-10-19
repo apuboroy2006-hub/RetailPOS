@@ -39,7 +39,7 @@ public class InventoryFrame extends JFrame {
     private DefaultTableModel tableModel;
 
     private JTextField searchField;
-
+ 
     public InventoryFrame(User loggedInUser) {
         this.loggedInUser = loggedInUser;
         productRepository =
@@ -160,12 +160,15 @@ auditLogService =
 
         JButton historyButton =
                 new JButton("History");
+        JButton allHistoryButton =
+                new JButton("All Stock History");
 
         buttonPanel.add(stockInButton);
         buttonPanel.add(stockOutButton);
         buttonPanel.add(adjustButton);
         buttonPanel.add(historyButton);
-
+        buttonPanel.add(allHistoryButton);
+        
         add(buttonPanel, BorderLayout.SOUTH);
 
         // =========================
@@ -199,6 +202,9 @@ auditLogService =
         historyButton.addActionListener(e ->
                 showHistory()
         );
+        allHistoryButton.addActionListener(e ->
+        showAllHistory()
+    );
     }
 
     // =========================
@@ -299,6 +305,7 @@ auditLogService =
 
         Product product =
                 getSelectedProduct();
+                System.out.println("Selected Product ID: " + product.getId());
 
         if (product == null) {
             return;
@@ -541,25 +548,82 @@ auditLogService.log(
             );
         }
     }
+     private void showAllHistory() {
 
+    List<StockTransaction> transactions =
+            transactionRepository.findAll();
+
+    String[] columns = {
+            "Product Name",
+            "Type",
+            "Quantity",
+            "Previous Stock",
+            "New Stock",
+            "Reason",
+            "Performed By",
+            "Date"
+    };
+
+    DefaultTableModel historyModel =
+            new DefaultTableModel(columns, 0) {
+                @Override
+                public boolean isCellEditable(
+                        int row,
+                        int column
+                ) {
+                    return false;
+                }
+            };
+
+    for (StockTransaction transaction : transactions) {
+        historyModel.addRow(
+                new Object[]{
+                        transaction.getProductName(),
+                        transaction.getType(),
+                        transaction.getQuantity(),
+                        transaction.getPreviousStock(),
+                        transaction.getNewStock(),
+                        transaction.getReason(),
+                        transaction.getPerformedBy(),
+                        transaction.getCreatedAt()
+                }
+        );
+    }
+
+    JTable historyTable = new JTable(historyModel);
+    historyTable.setAutoCreateRowSorter(true);
+    historyTable.setRowHeight(25);
+
+    JScrollPane scrollPane = new JScrollPane(historyTable);
+    scrollPane.setPreferredSize(new Dimension(1000, 400));
+
+    JOptionPane.showMessageDialog(
+            this,
+            scrollPane,
+            "All Stock History",
+            JOptionPane.PLAIN_MESSAGE
+    );
+}
     // =========================
     // SHOW HISTORY
     // =========================
 
     private void showHistory() {
-
+        System.out.println("SHOW HISTORY CALLED");
         Product product =
                 getSelectedProduct();
 
         if (product == null) {
             return;
         }
-
+         System.out.println("Selected Product ID: " + product.getId());
+         System.out.println("Selected Product: " + product.getName());
         List<StockTransaction> transactions =
                 inventoryService.getProductTransactions(
                         product.getId()
                 );
-
+               
+        System.out.println("History records found: " + transactions.size());
         String[] columns = {
                 "Type",
                 "Quantity",

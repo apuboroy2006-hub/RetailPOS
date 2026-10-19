@@ -1,0 +1,17 @@
+.git
+target
+backups/
+**/backups/
+*.backup
+*.backup-*
+*.bak
+*.pre-github.bak
+.env
+.env.*
+*.log
+# Additional local source backups
+*backup*.java
+*.before-*
+# Temporary source backups
+*before-*.java
+*before-*

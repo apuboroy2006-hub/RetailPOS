@@ -445,13 +445,16 @@ sessionService =
 
                 passwordField.setText("");
             }
-
-        } catch (Exception e) {
-
-            messageLabel.setText(
-                    "Login error."
-            );
-
         }
+        catch (Exception e) {
+
+    e.printStackTrace();
+
+    messageLabel.setText(
+            "Login error. Check console output."
+    );
+
+       }
+
     }
 }

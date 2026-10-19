@@ -1,15 +1,11 @@
 package com.retailpos.web;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import com.retailpos.model.AuditLog;
-import com.retailpos.repository.mongodb.AuditLogRepositoryImpl;
-import com.retailpos.service.AuditLogService;
-import com.retailpos.service.BackupService;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -19,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.retailpos.model.AuditLog;
 import com.retailpos.model.Customer;
 import com.retailpos.model.Device;
 import com.retailpos.model.Product;
@@ -30,6 +27,7 @@ import com.retailpos.model.Settings;
 import com.retailpos.model.StockTransaction;
 import com.retailpos.model.User;
 import com.retailpos.repository.DeviceRepository;
+import com.retailpos.repository.mongodb.AuditLogRepositoryImpl;
 import com.retailpos.repository.mongodb.CustomerRepositoryImpl;
 import com.retailpos.repository.mongodb.DeviceRepositoryImpl;
 import com.retailpos.repository.mongodb.OtpRepositoryImpl;
@@ -46,6 +44,8 @@ import com.retailpos.security.AuthService;
 import com.retailpos.security.EmailService;
 import com.retailpos.security.OtpService;
 import com.retailpos.security.SessionService;
+import com.retailpos.service.AuditLogService;
+import com.retailpos.service.BackupService;
 import com.retailpos.service.CustomerService;
 import com.retailpos.service.InventoryService;
 import com.retailpos.service.ProductService;
@@ -151,7 +151,7 @@ otpService =
     public void start() throws IOException {
 
         server = HttpServer.create(
-                new InetSocketAddress("0.0.0.0", 8080),
+                new InetSocketAddress("0.0.0.0", Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"))),
                 0
         );
         server.createContext(
@@ -244,6 +244,8 @@ server.createContext(
         if (session == null) {
             return;
         }
+        
+
 
         try {
 
@@ -1134,6 +1136,102 @@ private void handleProducts(
     if (session == null) {
         return;
     }
+    
+    if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+        try {
+            String body = new String(
+                    exchange.getRequestBody().readAllBytes(),
+                    StandardCharsets.UTF_8
+            );
+
+            Map<String, String> formData = parseFormData(body);
+            String action = formData.get("action");
+
+            if ("add".equals(action)) {
+                productService.createProduct(
+                        formData.get("name"),
+                        formData.get("sku"),
+                        formData.get("barcode"),
+                        formData.get("category"),
+                        Double.parseDouble(formData.get("purchasePrice")),
+                        Double.parseDouble(formData.get("sellingPrice")),
+                        Integer.parseInt(formData.get("stockQuantity")),
+                        Integer.parseInt(formData.get("minimumStock")),
+                        formData.getOrDefault("supplier", "")
+                );
+
+            } else if ("edit".equals(action)) {
+                String id = formData.get("id");
+
+                Product product = productService.findById(id)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException("Product not found."));
+
+                String sku = formData.get("sku");
+                String barcode = formData.get("barcode");
+
+                Optional<Product> duplicateSku =
+                        productService.findBySku(sku);
+
+                if (duplicateSku.isPresent()
+                        && !duplicateSku.get().getId().equals(id)) {
+                    throw new IllegalArgumentException("SKU already exists.");
+                }
+
+                if (barcode != null && !barcode.isBlank()) {
+                    Optional<Product> duplicateBarcode =
+                            productService.findByBarcode(barcode);
+
+                    if (duplicateBarcode.isPresent()
+                            && !duplicateBarcode.get().getId().equals(id)) {
+                        throw new IllegalArgumentException("Barcode already exists.");
+                    }
+                }
+
+                product.setName(formData.get("name"));
+                product.setSku(sku);
+                product.setBarcode(barcode);
+                product.setCategory(formData.get("category"));
+                product.setPurchasePrice(
+                        Double.parseDouble(formData.get("purchasePrice")));
+                product.setSellingPrice(
+                        Double.parseDouble(formData.get("sellingPrice")));
+                product.setStockQuantity(
+                        Integer.parseInt(formData.get("stockQuantity")));
+                product.setMinimumStock(
+                        Integer.parseInt(formData.get("minimumStock")));
+                product.setSupplier(formData.getOrDefault("supplier", ""));
+
+                productService.updateProduct(product);
+
+            } else if ("delete".equals(action)) {
+                String id = formData.get("id");
+
+                if (id == null || id.isBlank()) {
+                    throw new IllegalArgumentException("Product ID is required.");
+                }
+
+                productService.deleteProduct(id);
+
+            } else {
+                throw new IllegalArgumentException("Invalid product action.");
+            }
+
+            exchange.getResponseHeaders().set("Location", "/products");
+            exchange.sendResponseHeaders(303, -1);
+            exchange.close();
+            return;
+
+        } catch (Exception e) {
+            sendResponse(
+                    exchange,
+                    400,
+                    "Product operation failed: " + e.getMessage()
+            );
+            return;
+        }
+    }
+
     List<Product> products =
             productService.getAllProducts();
 
@@ -1168,7 +1266,28 @@ private void handleProducts(
                 <td>%d</td>
 
                 <td>%s</td>
-
+                                <td>
+                    <form method="POST" action="/products"
+                          onsubmit="return confirm('Delete this product?')">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="id" value="%s">
+                        <button class="button" type="submit">Delete</button>
+        <button class="button" type="button"
+        onclick="editProduct(this)"
+        data-id="%s"
+        data-name="%s"
+        data-sku="%s"
+        data-barcode="%s"
+        data-category="%s"
+        data-purchase-price="%.2f"
+        data-selling-price="%.2f"
+        data-stock="%d"
+        data-minimum="%d"
+        data-supplier="%s">
+    Edit
+</button>
+                    </form>
+                </td>
             </tr>
             """.formatted(
                 escapeHtml(product.getName()),
@@ -1177,6 +1296,17 @@ private void handleProducts(
                 product.getPurchasePrice(),
                 product.getSellingPrice(),
                 stockClass,
+                product.getStockQuantity(),
+                product.getMinimumStock(),
+                escapeHtml(product.getSupplier()),
+                escapeHtml(product.getId()),
+                                escapeHtml(product.getId()),
+                escapeHtml(product.getName()),
+                escapeHtml(product.getSku()),
+                escapeHtml(product.getBarcode() == null ? "" : product.getBarcode()),
+                escapeHtml(product.getCategory()),
+                product.getPurchasePrice(),
+                product.getSellingPrice(),
                 product.getStockQuantity(),
                 product.getMinimumStock(),
                 escapeHtml(product.getSupplier())
@@ -1313,8 +1443,103 @@ private void handleProducts(
                     >
                         Refresh
                     </button>
+                   <button
+    class="button"
+    onclick="document.getElementById('addProductForm').style.display='block'"
+>
+    Add Product
+</button>
 
                 </div>
+                
+<div id="addProductForm" style="display:none; background:white; padding:20px; margin-bottom:20px; border-radius:10px;">
+    <h3>Add New Product</h3>
+
+    <form method="POST" action="/products">
+        <input type="hidden" name="action" value="add">
+
+        <p>Product Name</p>
+        <input name="name" required>
+
+        <p>SKU</p>
+        <input name="sku" required>
+
+        <p>Barcode</p>
+        <input name="barcode">
+
+        <p>Category</p>
+        <input name="category" required>
+
+        <p>Purchase Price</p>
+        <input name="purchasePrice" type="number" step="0.01" min="0" required>
+
+        <p>Selling Price</p>
+        <input name="sellingPrice" type="number" step="0.01" min="0" required>
+
+        <p>Stock Quantity</p>
+        <input name="stockQuantity" type="number" min="0" required>
+
+        <p>Minimum Stock</p>
+        <input name="minimumStock" type="number" min="0" required>
+
+        <p>Supplier</p>
+        <input name="supplier">
+
+        <br><br>
+        <button class="button" type="submit">Save Product</button>
+        <button class="button" type="button"
+                onclick="document.getElementById('addProductForm').style.display='none'">
+            Cancel
+        </button>
+    </form>
+</div>
+                 <div id="editProductForm"
+     style="display:none; background:white; padding:20px; margin-bottom:20px; border-radius:10px;">
+  
+    <h3>Edit Product</h3>
+    <form method="POST" action="/products">
+        <input type="hidden" name="action" value="edit">
+        <input type="hidden" name="id" id="editId">
+
+        <p>Product Name</p>
+        <input name="name" id="editName" required>
+
+        <p>SKU</p>
+        <input name="sku" id="editSku" required>
+
+        <p>Barcode</p>
+        <input name="barcode" id="editBarcode">
+
+        <p>Category</p>
+        <input name="category" id="editCategory" required>
+
+        <p>Purchase Price</p>
+        <input name="purchasePrice" id="editPurchasePrice"
+               type="number" step="0.01" min="0" required>
+
+        <p>Selling Price</p>
+        <input name="sellingPrice" id="editSellingPrice"
+               type="number" step="0.01" min="0" required>
+
+        <p>Stock Quantity</p>
+        <input name="stockQuantity" id="editStock"
+               type="number" min="0" required>
+
+        <p>Minimum Stock</p>
+        <input name="minimumStock" id="editMinimum"
+               type="number" min="0" required>
+
+        <p>Supplier</p>
+        <input name="supplier" id="editSupplier">
+
+        <br><br>
+        <button class="button" type="submit">Update Product</button>
+        <button class="button" type="button"
+                onclick="document.getElementById('editProductForm').style.display='none'">
+            Cancel
+        </button>
+    </form>
+</div>
 
                 <div class="table-container">
 
@@ -1331,6 +1556,7 @@ private void handleProducts(
                                 <th>Stock</th>
                                 <th>Minimum</th>
                                 <th>Supplier</th>
+                                <th>Actions</th>
                             </tr>
 
                         </thead>
@@ -1353,6 +1579,25 @@ private void handleProducts(
                 </button>
 
             </div>
+            <script>
+function editProduct(button) {
+    const form = document.getElementById('editProductForm');
+
+    document.getElementById('editId').value = button.dataset.id;
+    document.getElementById('editName').value = button.dataset.name;
+    document.getElementById('editSku').value = button.dataset.sku;
+    document.getElementById('editBarcode').value = button.dataset.barcode;
+    document.getElementById('editCategory').value = button.dataset.category;
+    document.getElementById('editPurchasePrice').value = button.dataset.purchasePrice;
+    document.getElementById('editSellingPrice').value = button.dataset.sellingPrice;
+    document.getElementById('editStock').value = button.dataset.stock;
+    document.getElementById('editMinimum').value = button.dataset.minimum;
+    document.getElementById('editSupplier').value = button.dataset.supplier;
+
+    form.style.display = 'block';
+    form.scrollIntoView({ behavior: 'smooth' });
+}
+</script>
 
         </body>
 
@@ -1737,34 +1982,25 @@ private void handlePos(
 
                         <div class="summary">
 
-                            <div>
-                                Subtotal:
-                                ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹<span id="subtotal">
-                                    0.00
-                                </span>
-                            </div>
+    <div>
+        Subtotal: &#8377;<span id="subtotal">0.00</span>
+    </div>
 
-                            <br>
+    <br>
 
-                            <div>
-                                Discount:
-                                ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹<span id="discount">
-                                    0.00
-                                </span>
-                            </div>
+    <div>
+        Discount: &#8377;<span id="discount">0.00</span>
+    </div>
 
-                            <br>
+    <br>
 
-                            <div class="total">
-                                Total:
-                                ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹<span id="total">
-                                    0.00
-                                </span>
-                            </div>
+    <div class="total">
+        Total: &#8377;<span id="total">0.00</span>
+    </div>
 
-                        </div>
+</div>
 
-                        <div class="payment">
+<div class="payment">
 
                             <label>
                                 Payment Method
@@ -2960,15 +3196,79 @@ private String escapeJson(
             .replace("\r", "\\r");
 }
 
-private void handleInventory(
+    private void handleInventory(
         HttpExchange exchange
 ) throws IOException {
     Session session = requireAuth(exchange);
 
-    if (session == null) {
+   if (session == null) {
+    return;
+}
+
+if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+    User currentUser = getCurrentUser(session);
+
+    if (currentUser == null) {
+        sendResponse(exchange, 403, "User not found.");
         return;
     }
+
     try {
+        String body = new String(
+                exchange.getRequestBody().readAllBytes(),
+                StandardCharsets.UTF_8
+        );
+
+        Map<String, String> formData = parseFormData(body);
+
+        String action = formData.get("action");
+        String productId = formData.get("productId");
+        String reason = formData.getOrDefault("reason", "").trim();
+
+        if (productId == null || productId.isBlank()) {
+            throw new IllegalArgumentException("Please select a product.");
+        }
+
+        if (reason.isBlank()) {
+            throw new IllegalArgumentException("Reason is required.");
+        }
+
+        int quantity = Integer.parseInt(formData.get("quantity"));
+
+        if ("stockIn".equals(action)) {
+            inventoryService.stockIn(
+                    productId, quantity, reason, currentUser.getUsername()
+            );
+        } else if ("stockOut".equals(action)) {
+            inventoryService.stockOut(
+                    productId, quantity, reason, currentUser.getUsername()
+            );
+        } else if ("adjustStock".equals(action)) {
+            inventoryService.adjustStock(
+                    productId, quantity, reason, currentUser.getUsername()
+            );
+        } else {
+            throw new IllegalArgumentException("Invalid inventory action.");
+        }
+
+        exchange.getResponseHeaders().set("Location", "/inventory");
+        exchange.sendResponseHeaders(303, -1);
+        exchange.close();
+        return;
+
+    } catch (Exception e) {
+        sendResponse(
+                exchange,
+                400,
+                "Inventory operation failed: "
+                        + (e.getMessage() == null
+                        ? "Unknown error" : e.getMessage())
+        );
+        return;
+    }
+}
+
+try {
 
         List<Product> products =
                 productService.getAllProducts();
@@ -3009,6 +3309,17 @@ private void handleInventory(
             );
         }
 
+        StringBuilder productOptions = new StringBuilder();
+
+        for (Product product : products) {
+            productOptions.append("""
+                <option value="%s">%s (%s)</option>
+                """.formatted(
+                    escapeHtml(product.getId()),
+                    escapeHtml(product.getName()),
+                    escapeHtml(product.getSku())
+            ));
+        }
         StringBuilder transactionRows =
                 new StringBuilder();
 
@@ -3149,6 +3460,52 @@ private void handleInventory(
                     </p>
 
                     <div class="panel">
+                        <h2>Stock Operations</h2>
+                        <div class="panel">
+                            <h3>Stock In</h3>
+                            <form method="post" action="/inventory">
+                                <input type="hidden" name="action" value="stockIn">
+                                <label>Product</label>
+                                <select name="productId" required>
+                                    %s
+                                </select>
+                                <label>Quantity to Add</label>
+                                <input type="number" name="quantity" min="1" required>
+                                <label>Reason</label>
+                                <input type="text" name="reason" required>
+                                <button class="button" type="submit">Stock In</button>
+                            </form>
+                        </div>
+                        <div class="panel">
+                            <h3>Stock Out</h3>
+                            <form method="post" action="/inventory">
+                                <input type="hidden" name="action" value="stockOut">
+                                <label>Product</label>
+                                <select name="productId" required>
+                                    %s
+                                </select>
+                                <label>Quantity to Remove</label>
+                                <input type="number" name="quantity" min="1" required>
+                                <label>Reason</label>
+                                <input type="text" name="reason" required>
+                                <button class="button" type="submit">Stock Out</button>
+                            </form>
+                        </div>
+                        <div class="panel">
+                            <h3>Adjust Stock</h3>
+                            <form method="post" action="/inventory">
+                                <input type="hidden" name="action" value="adjustStock">
+                                <label>Product</label>
+                                <select name="productId" required>
+                                    %s
+                                </select>
+                                <label>New Total Stock</label>
+                                <input type="number" name="quantity" min="0" required>
+                                <label>Reason</label>
+                                <input type="text" name="reason" required>
+                                <button class="button" type="submit">Adjust Stock</button>
+                            </form>
+                        </div>
                         <h2>Current Stock</h2>
                         <table>
                             <thead>
@@ -3190,9 +3547,12 @@ private void handleInventory(
             </body>
             </html>
             """.formatted(
+                productOptions.toString(),
+                productOptions.toString(),
+                productOptions.toString(),
                 productRows.toString(),
                 transactionRows.toString()
-        );
+                );
 
         byte[] bytes =
                 withSessionPolling(exchange, html).getBytes(StandardCharsets.UTF_8);
@@ -3238,9 +3598,7 @@ private void handleSales(
         return;
     }
     try {
-
-
-User currentUser = getCurrentUser(session);
+   User currentUser = getCurrentUser(session);
 
 if (currentUser == null) {
     sendResponse(
@@ -3251,7 +3609,7 @@ if (currentUser == null) {
     return;
 }
 
-List<Sale> sales =
+   List<Sale> sales =
         saleService.getAllSales();
 
 if ("CASHIER".equals(currentUser.getRole())) {
@@ -3298,6 +3656,7 @@ if ("CASHIER".equals(currentUser.getRole())) {
 
                 rows.append("""
                         <tr>
+                            <td><input type="checkbox" class="sale-select" value="%s"></td>
                             <td>%s</td>
                             <td>%s</td>
                             <td>%s</td>
@@ -3314,6 +3673,7 @@ if ("CASHIER".equals(currentUser.getRole())) {
                             </td>
                         </tr>
                         """.formatted(
+                                escapeHtml(sale.getId()),
                                 escapeHtml(
                                         sale.getInvoiceNumber()
                                 ),
@@ -3440,12 +3800,102 @@ if ("CASHIER".equals(currentUser.getRole())) {
 
                             <h2>Sales History</h2>
 
+                            <div style="margin-bottom:15px;">
+                                <input id="salesSearch" type="text"
+                                       placeholder="Search invoice, customer, or sold by..."
+                                       oninput="filterSales()"
+                                       style="padding:10px;width:320px;max-width:90%%;">
+                                <a class="button" href="/sales">Refresh</a>
+                                <button class="button" type="button" onclick="printSelectedSales()">Print Selected Invoices</button>
+                            </div>
+
+                            <script>
+                                function filterSales() {
+                                    const query = document.getElementById('salesSearch').value.toLowerCase();
+                                    document.querySelectorAll('tbody tr').forEach(row => {
+                                        row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
+                                    });
+                                }
+                            
+                                document.getElementById('selectAllSales').addEventListener('change', function () {
+                                    document.querySelectorAll('.sale-select').forEach(function (box) {
+                                        box.checked = document.getElementById('selectAllSales').checked;
+                                    });
+                                });
+
+                                async function printSelectedSales() {
+                                    const ids = Array.from(document.querySelectorAll('.sale-select:checked'))
+                                        .map(function (box) { return box.value; });
+
+                                    if (ids.length === 0) {
+                                        alert('Please select at least one invoice.');
+                                        return;
+                                    }
+
+                                    const printWindow = window.open('', '_blank');
+                                    if (!printWindow) {
+                                        alert('Please allow pop-ups to print invoices.');
+                                        return;
+                                    }
+
+                                    try {
+                                        const pages = await Promise.all(ids.map(async function (id) {
+                                            const response = await fetch('/sale-details?id=' + encodeURIComponent(id));
+                                            if (!response.ok) throw new Error('Could not load invoice ' + id);
+
+                                            const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
+                                            const container = doc.querySelector('.container');
+                                            if (!container) throw new Error('Invoice content not found.');
+
+                                            container.querySelectorAll('a[href="/sales"], button[onclick*="window.print"]').forEach(function (element) {
+                                                element.remove();
+                                            });
+
+                                            return {
+                                                head: doc.head.innerHTML,
+                                                body: container.innerHTML
+                                            };
+                                        }));
+
+                                        const style = '<style>' +
+                                            'body{font-family:Arial,sans-serif;color:#111}' +
+                                            '.invoice-page{break-after:page;page-break-after:always}' +
+                                            '.invoice-page:last-child{break-after:auto;page-break-after:auto}' +
+                                            'table{width:100%%;border-collapse:collapse}' +
+                                            'th,td{border:1px solid #ccc;padding:6px;text-align:left}' +
+                                            '@media print{.invoice-page{break-inside:avoid}}' +
+                                            '</style>';
+
+                                        printWindow.document.open();
+                                        printWindow.document.write(
+                                            '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+                                            pages[0].head + style +
+                                            '</head><body>' +
+                                            pages.map(function (page) {
+                                                return '<section class="invoice-page">' + page.body + '</section>';
+                                            }).join('') +
+                                            '</body></html>'
+                                        );
+                                        printWindow.document.close();
+
+                                        printWindow.onload = function () {
+                                            printWindow.focus();
+                                            printWindow.print();
+                                        };
+                                    } catch (error) {
+                                        printWindow.close();
+                                        alert('Printing failed: ' + error.message);
+                                    }
+                                }
+                            </script>
+
                             <table>
 
                                 <thead>
 
                                     <tr>
-                                        <th>Invoice</th>
+                                        <th><input type="checkbox" id="selectAllSales" title="Select All"></th>
+                        <th>Invoice</th>
                                         <th>Customer</th>
                                         <th>Payment</th>
                                         <th>Subtotal</th>
@@ -3500,8 +3950,8 @@ if ("CASHIER".equals(currentUser.getRole())) {
 
 private void handleSaleDetails(
         HttpExchange exchange
-) throws IOException {
-
+  ) throws IOException {
+    
     Session session = requireAuth(exchange);
 
     if (session == null) {
@@ -3699,8 +4149,10 @@ private void handleSaleDetails(
 
                         <a class="button"
                            href="/sales">
-                            ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Back to Sales
+                            Back to Sales
                         </a>
+
+                        <button class="button" type="button" onclick="window.print()">Print Invoice</button>
 
                         <div class="card">
 
@@ -3791,9 +4243,10 @@ private void handleSaleDetails(
 
                 </html>
                 """.formatted(
-                        escapeHtml(
-                                sale.getInvoiceNumber()
-                        ),
+                        
+                                escapeHtml(
+                                        sale.getInvoiceNumber()
+                                ),
                         escapeHtml(
                                 sale.getCustomerName()
                         ),
